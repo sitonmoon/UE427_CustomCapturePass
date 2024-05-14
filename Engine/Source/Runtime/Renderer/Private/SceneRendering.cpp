@@ -897,6 +897,7 @@ void FViewInfo::Init()
 	bHMDHiddenAreaMaskActive = IsHMDHiddenAreaMaskActive();
 	bUseComputePasses = IsPostProcessingWithComputeEnabled(FeatureLevel);
 	bHasCustomDepthPrimitives = false;
+	bHasCustomCapturePrimitives = false;
 	bHasDistortionPrimitives = false;
 	bAllowStencilDither = false;
 	bCustomDepthStencilValid = false;

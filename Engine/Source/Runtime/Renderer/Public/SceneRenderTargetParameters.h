@@ -99,6 +99,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferCTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GBufferDTextureSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthAuxTextureSampler)
+	// Custom Capture
+	SHADER_PARAMETER_TEXTURE(Texture2D, CustomCaptureTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, CustomCaptureTextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 enum class EMobileSceneTextureSetupMode : uint32
@@ -107,7 +110,8 @@ enum class EMobileSceneTextureSetupMode : uint32
 	SceneColor		= 1 << 0,
 	CustomDepth		= 1 << 1,
 	SceneVelocity	= 1 << 2,
-	All = SceneColor | CustomDepth | SceneVelocity
+	CustomCapture	= 1 << 3,
+	All = SceneColor | CustomDepth | SceneVelocity | CustomCapture
 };
 ENUM_CLASS_FLAGS(EMobileSceneTextureSetupMode);
 

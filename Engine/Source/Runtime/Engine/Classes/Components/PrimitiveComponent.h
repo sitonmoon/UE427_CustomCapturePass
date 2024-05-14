@@ -522,6 +522,10 @@ public:
 	UPROPERTY()
 	uint8 bUseEditorCompositing:1;
 
+	/** If true, this component will be rendered in the CustomCapture pass */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (DisplayName = "Render CustomCapture Pass"))
+	uint8 bRenderCustomCapture : 1;
+
 	/** If true, this component will be rendered in the CustomDepth pass (usually used for outlines) */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(DisplayName = "Render CustomDepth Pass"))
 	uint8 bRenderCustomDepth:1;
@@ -531,6 +535,9 @@ public:
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (DisplayName = "Hidden In Scene Capture", ToolTip = "When true, will not be captured by Scene Capture"))
 	uint8 bHiddenInSceneCapture : 1;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (DisplayName = "Visible In Custom Capture Only", ToolTip = "When true, will only be visible in Custom Capture"))
+	uint8 bVisibleInCustomCaptureOnly : 1;
 
 protected:
 	/** Result of last call to AreAllCollideableDescendantsRelative(). */

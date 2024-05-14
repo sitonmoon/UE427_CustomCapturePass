@@ -268,6 +268,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, MobileCustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomDepth))
 	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
 	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
+	, CustomCapture(GRenderTargetPool.MakeSnapshot(SnapshotSource.CustomCapture))
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
 	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
 	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
@@ -1979,10 +1980,10 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	QuadOverdrawBuffer.SafeRelease();
 	LightAccumulation.SafeRelease();
 	DirectionalOcclusion.SafeRelease();
-	CustomDepth.SafeRelease();
 	MobileCustomDepth.SafeRelease();
 	MobileCustomStencil.SafeRelease();
 	CustomStencilSRV.SafeRelease();
+	CustomCapture.SafeRelease();
 	VirtualTextureFeedback.SafeRelease();
 	VirtualTextureFeedbackUAV.SafeRelease();
 
@@ -2085,6 +2086,37 @@ const FUnorderedAccessViewRHIRef& FSceneRenderTargets::GetSceneColorTextureUAV()
 	return (const FUnorderedAccessViewRHIRef&)GetSceneColor()->GetRenderTargetItem().UAV;
 }
 
+FCustomCaptureTextures FSceneRenderTargets::RequestCustomCapture(FRHICommandListImmediate& RHICmdList, bool bPrimitives)
+{
+	FCustomCaptureTextures CustomCaptureTextures{};
+
+	const bool bMobilePath = (CurrentFeatureLevel <= ERHIFeatureLevel::ES3_1);
+	const int32 DownsampleFactor = bMobilePath && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
+
+	if (bPrimitives)
+	{
+		const FIntPoint CustomDepthBufferSize = FIntPoint::DivideAndRoundUp(BufferSize, DownsampleFactor);
+
+		if (!CustomCapture)
+		{
+			ETextureCreateFlags CustomCaptureFlags = TexCreate_ShaderResource;
+			if (bMobilePath)
+			{
+				CustomCaptureFlags |= TexCreate_Memoryless;
+			}
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("CustomCaptureTexture"));
+			FPooledRenderTargetDesc CustomCaptureRTDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_G16R16, FClearValueBinding::Black, CustomCaptureFlags, TexCreate_RenderTargetable, false));
+			GRenderTargetPool.FindFreeElement(RHICmdList, CustomCaptureRTDesc, CustomCapture, TEXT("CustomCaptureTexture"));
+		}
+		
+		CustomCaptureTextures.CustomColor = CustomCapture->GetTargetableRHI();
+		
+	}
+
+	return CustomCaptureTextures;
+}
+
 FCustomDepthTextures FSceneRenderTargets::RequestCustomDepth(FRDGBuilder& GraphBuilder, bool bPrimitives)
 {
 	FCustomDepthTextures CustomDepthTextures{};
@@ -2111,8 +2143,8 @@ FCustomDepthTextures FSceneRenderTargets::RequestCustomDepth(FRDGBuilder& GraphB
 		if (bMobilePath)
 		{
 			bHasValidCustomStencil = (CustomDepthTextures.MobileCustomStencil && CustomDepthBufferSize == CustomDepthTextures.MobileCustomStencil->Desc.Extent) &&
-			                         // Use memory less when stencil writing is disabled and vice versa
-			                         bWritesCustomStencilValues == ((CustomDepthTextures.MobileCustomStencil->Desc.Flags & TexCreate_Memoryless) == 0);
+				// Use memory less when stencil writing is disabled and vice versa
+				bWritesCustomStencilValues == ((CustomDepthTextures.MobileCustomStencil->Desc.Flags & TexCreate_Memoryless) == 0);
 		}
 		else
 		{
@@ -2134,7 +2166,7 @@ FCustomDepthTextures FSceneRenderTargets::RequestCustomDepth(FRDGBuilder& GraphB
 
 			CustomDepthTextures.CustomDepth = GraphBuilder.CreateTexture(CustomDepthDesc, TEXT("CustomDepth"));
 			ConvertToExternalTexture(GraphBuilder, CustomDepthTextures.CustomDepth, CustomDepth);
-			
+
 			if (bMobilePath)
 			{
 				const float DepthFar = (float)ERHIZBuffer::FarPlane;
@@ -2167,6 +2199,7 @@ FCustomDepthTextures FSceneRenderTargets::RequestCustomDepth(FRDGBuilder& GraphB
 
 	return CustomDepthTextures;
 }
+
 
 bool FSceneRenderTargets::IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type InFeatureLevel)
 {
@@ -2301,7 +2334,7 @@ void SetupSceneTextureUniformParameters(
 	FRDGTextureRef BlackDefault2D = GetRDG(GSystemTextures.BlackDummy);
 	FRDGTextureRef DepthDefault = GetRDG(GSystemTextures.DepthDummy);
 	check(WhiteDefault2D && BlackDefault2D && DepthDefault);
-
+	
 	// Scene Color / Depth
 	{
 		SceneTextureParameters.SceneColorTexture = BlackDefault2D;
@@ -2511,6 +2544,14 @@ static void SetupMobileSceneTextureUniformParameters(
 	{
 		SceneTextureParameters.SceneVelocityTexture = GetRDG(SceneContext.SceneVelocity);
 	}
+	
+	// Custom Capture
+	{
+		const FSceneRenderTargetItem& CaptureToUse = SceneContext.CustomCapture ? SceneContext.CustomCapture->GetRenderTargetItem() : GSystemTextures.BlackDummy->GetRenderTargetItem();
+		SceneTextureParameters.CustomCaptureTexture = CaptureToUse.ShaderResourceTexture;
+		SceneTextureParameters.CustomCaptureTextureSampler = TStaticSamplerState<>::GetRHI();
+	}
+
 }
 
 void SetupMobileSceneTextureUniformParameters(

@@ -6823,6 +6823,7 @@ FPrimitiveViewRelevance FParticleSystemSceneProxy::GetViewRelevance(const FScene
 	Result.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.Particles;
 	Result.bShadowRelevance = IsShadowCast(View);
 	Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+	Result.bRenderCustomCapture = ShouldRenderCustomCapture();
 	Result.bRenderInMainPass = ShouldRenderInMainPass();
 	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 	Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;

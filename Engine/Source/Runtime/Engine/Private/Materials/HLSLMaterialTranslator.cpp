@@ -4871,6 +4871,7 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 
 	const bool bSupportedOnMobile = SceneTextureId == PPI_PostProcessInput0 ||
 									SceneTextureId == PPI_CustomDepth ||
+									SceneTextureId == PPI_CustomCapture ||
 									SceneTextureId == PPI_SceneDepth ||
 									SceneTextureId == PPI_CustomStencil;
 

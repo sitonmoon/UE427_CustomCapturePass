@@ -144,6 +144,11 @@ struct FCustomDepthTextures
 	FRDGTextureRef MobileCustomStencil{};
 };
 
+struct FCustomCaptureTextures
+{
+	FTextureRHIRef CustomColor{};
+};
+
 /**
  * Encapsulates the render targets used for scene rendering.
  */
@@ -349,6 +354,10 @@ public:
 	}
 
 	// @return can be empty if the feature is disabled
+	FCustomCaptureTextures RequestCustomCapture(FRDGBuilder& GraphBuilder, bool bPrimitives);
+	FCustomCaptureTextures RequestCustomCapture(FRHICommandListImmediate& RHICmdList, bool bPrimitives);
+
+	// @return can be empty if the feature is disabled
 	FCustomDepthTextures RequestCustomDepth(FRDGBuilder& GraphBuilder, bool bPrimitives);
 
 	static bool IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type InFeatureLevel);
@@ -499,6 +508,8 @@ public:
 	// CustomDepth is memoryless on mobile, depth is saved in MobileCustomDepth Color RT 
 	TRefCountPtr<IPooledRenderTarget> MobileCustomDepth;
 	TRefCountPtr<IPooledRenderTarget> MobileCustomStencil;
+	// used by CustomCapture pass
+	TRefCountPtr<IPooledRenderTarget> CustomCapture;
 	// used by the CustomDepth material feature for stencil
 	TRefCountPtr<FRHIShaderResourceView> CustomStencilSRV;
 

@@ -502,6 +502,7 @@ public:
 	inline bool ShouldRenderCustomDepth() const { return bRenderCustomDepth; }
 	inline bool IsVisibleInSceneCaptureOnly() const { return bVisibleInSceneCaptureOnly; }
 	inline bool IsHiddenInSceneCapture() const { return bHiddenInSceneCapture; }
+	inline bool IsVisibleInCustomCaptureOnly() const { return bVisibleInCustomCaptureOnly; }
 	inline uint8 GetCustomDepthStencilValue() const { return CustomDepthStencilValue; }
 	inline EStencilMask GetStencilWriteMask() const { return CustomDepthStencilWriteMask; }
 	inline uint8 GetLightingChannelMask() const { return LightingChannelMask; }
@@ -564,6 +565,8 @@ public:
 	inline bool NeedsLevelAddedToWorldNotification() const { return bNeedsLevelAddedToWorldNotification; }
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
+	inline bool ShouldRenderCustomCapture() const { return bCustomCapturePass; }
+
 	inline void SetPatchingFrameNumber(int32 FrameNumber)
 	{
 		if (GetUniformBuffer() != nullptr)
@@ -976,8 +979,14 @@ private:
 	/** This primitive has bRenderCustomDepth enabled */
 	uint8 bRenderCustomDepth : 1;
 
+	/** whether render in custom capture pass **/
+	uint8 bCustomCapturePass : 1;
+
 	/** This primitive is only visible in Scene Capture */
 	uint8 bVisibleInSceneCaptureOnly : 1;
+
+	/** This primitive is only visible in Scene Capture */
+	uint8 bVisibleInCustomCaptureOnly : 1;
 
 	/** This primitive should be hidden in Scene Capture */
 	uint8 bHiddenInSceneCapture : 1;

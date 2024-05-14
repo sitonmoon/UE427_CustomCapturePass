@@ -64,7 +64,8 @@ struct FPrimitiveViewRelevance : public FMaterialRelevance
 	uint32 bUsesLightingChannels : 1;
 	/** Whether the primitive has materials that use volumetric translucent self shadow. */
 	uint32 bTranslucentSelfShadow : 1;
-
+	/** The primitive should render to the custom capture pass. */
+	uint32 bRenderCustomCapture : 1;
 	/** 
 	 * Whether this primitive view relevance has been initialized this frame.  
 	 * Primitives that have not had ComputeRelevanceForView called on them (because they were culled) will not be initialized,

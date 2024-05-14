@@ -150,6 +150,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bRenderCustomDepth(InComponent->bRenderCustomDepth)
 ,	bVisibleInSceneCaptureOnly(InComponent->bVisibleInSceneCaptureOnly)
 ,	bHiddenInSceneCapture(InComponent->bHiddenInSceneCapture)
+,	bVisibleInCustomCaptureOnly(InComponent->bVisibleInCustomCaptureOnly)
 ,	CustomDepthStencilValue(InComponent->CustomDepthStencilValue)
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
@@ -178,6 +179,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #if WITH_EDITOR
 ,	NumUncachedStaticLightingInteractions(0)
 #endif
+,	bCustomCapturePass(InComponent->bRenderCustomCapture)
 {
 	check(Scene);
 
@@ -787,7 +789,7 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 	}
 	else
 	{
-		if (IsVisibleInSceneCaptureOnly())
+		if (IsVisibleInSceneCaptureOnly() || IsVisibleInCustomCaptureOnly())
 			return false;
 	}
 
@@ -863,6 +865,11 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 	}
 
 	if (!View->bIsSceneCapture && IsVisibleInSceneCaptureOnly())
+	{
+		return false;
+	}
+
+	if (IsVisibleInCustomCaptureOnly())	//Custom Capture need no shadow
 	{
 		return false;
 	}

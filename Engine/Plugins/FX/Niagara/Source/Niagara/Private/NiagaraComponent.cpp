@@ -352,6 +352,7 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 	Relevance.bRenderInMainPass = ShouldRenderInMainPass();
 	Relevance.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 	Relevance.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
+	Relevance.bRenderCustomCapture = ShouldRenderCustomCapture();
 
 	for (FNiagaraRenderer* Renderer : EmitterRenderers)
 	{

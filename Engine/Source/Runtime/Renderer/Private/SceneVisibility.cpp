@@ -1901,6 +1901,7 @@ struct FRelevancePacket
 	FTranslucenyPrimCount TranslucentPrimCount;
 	bool bHasDistortionPrimitives;
 	bool bHasCustomDepthPrimitives;
+	bool bHasCustomCapturePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> LazyUpdatePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> DirtyIndirectLightingCacheBufferPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> RecachedReflectionCapturePrimitives;
@@ -1933,6 +1934,7 @@ struct FRelevancePacket
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
 	bool bUsesCustomDepthStencil;
+	bool bUsesCustomCapture;
 	bool bShouldRenderDepthToTranslucency;
 	bool bSceneHasSkyMaterial;
 	bool bHasSingleLayerWaterMaterial;
@@ -1964,6 +1966,7 @@ struct FRelevancePacket
 		, NumVisibleDynamicEditorPrimitives(0)
 		, bHasDistortionPrimitives(false)
 		, bHasCustomDepthPrimitives(false)
+		, bHasCustomCapturePrimitives(false)
 		, CombinedShadingModelMask(0)
 		, bUsesGlobalDistanceField(false)
 		, bUsesLightingChannels(false)
@@ -2094,6 +2097,7 @@ struct FRelevancePacket
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
 			bUsesCustomDepthStencil |= ViewRelevance.bUsesCustomDepthStencil;
+			bUsesCustomCapture |= ViewRelevance.bUsesCustomCapture;
 			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
 			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 			bHasTranslucencySeparateModulation |= ViewRelevance.bSeparateTranslucencyModulate;
@@ -2102,6 +2106,11 @@ struct FRelevancePacket
 			if (ViewRelevance.bRenderCustomDepth)
 			{
 				bHasCustomDepthPrimitives = true;
+			}
+
+			if (ViewRelevance.bRenderCustomCapture)
+			{
+				bHasCustomCapturePrimitives = true;
 			}
 
 			extern bool GUseTranslucencyShadowDepths;
@@ -2244,7 +2253,7 @@ struct FRelevancePacket
 					if (ViewRelevance.bDrawRelevance)
 					{
 						if ((StaticMeshRelevance.bUseForMaterial || StaticMeshRelevance.bUseAsOccluder)
-							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass)
+							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderCustomCapture || ViewRelevance.bRenderInDepthPass)
 							&& !bHiddenByHLODFade)
 						{
 							bool bMobileIsInDepthPassMaskedMesh = (bMobileMaskedInEarlyPass && ViewRelevance.bMasked) && ShadingPath == EShadingPath::Mobile;
@@ -2265,7 +2274,7 @@ struct FRelevancePacket
 							}
 
 							// Mark static mesh as visible for rendering
-							if (StaticMeshRelevance.bUseForMaterial && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth))
+							if (StaticMeshRelevance.bUseForMaterial && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderCustomCapture))
 							{
 								// Specific logic for mobile packets
 								if (ShadingPath == EShadingPath::Mobile)
@@ -2281,7 +2290,7 @@ struct FRelevancePacket
 										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
 									}
 									// bUseSingleLayerWaterMaterial is added to BasePass on Mobile. No need to add it to SingleLayerWaterPass
-
+									
 									MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
 								}
 								else // Regular shading path
@@ -2307,6 +2316,12 @@ struct FRelevancePacket
 								if (ViewRelevance.bRenderCustomDepth)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::CustomDepth);
+								}
+
+								// CUSTOM CAPTURE MESH PASS
+								if (ViewRelevance.bRenderCustomCapture)
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::CustomCapturePass);
 								}
 
 								if (bAddLightmapDensityCommands)
@@ -2474,6 +2489,7 @@ struct FRelevancePacket
 		WriteView.bHasCustomDepthPrimitives |= bHasCustomDepthPrimitives;
 		WriteView.bUsesCustomDepthStencilInTranslucentMaterials |= bUsesCustomDepthStencil;
 		WriteView.bShouldRenderDepthToTranslucency |= bShouldRenderDepthToTranslucency;
+		WriteView.bHasCustomCapturePrimitives |= bHasCustomCapturePrimitives;
 		DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
 
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
@@ -2704,7 +2720,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 {
 	const int32 NumElements = MeshBatch.Mesh->Elements.Num();
 
-	if (ViewRelevance.bDrawRelevance && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass))
+	if (ViewRelevance.bDrawRelevance && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderCustomCapture || ViewRelevance.bRenderInDepthPass))
 	{
 		PassMask.Set(EMeshPass::DepthPass);
 		View.NumVisibleDynamicMeshElements[EMeshPass::DepthPass] += NumElements;
@@ -2724,12 +2740,20 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			{
 				PassMask.Set(EMeshPass::MobileBasePassCSM);
 				View.NumVisibleDynamicMeshElements[EMeshPass::MobileBasePassCSM] += NumElements;
+				
 			}
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
 				PassMask.Set(EMeshPass::CustomDepth);
 				View.NumVisibleDynamicMeshElements[EMeshPass::CustomDepth] += NumElements;
+			}
+
+			/* BEGIN CUSTOM CAPTURE PASS */
+			if (ViewRelevance.bRenderCustomCapture)
+			{
+				PassMask.Set(EMeshPass::CustomCapturePass);
+				View.NumVisibleDynamicMeshElements[EMeshPass::CustomCapturePass] += NumElements;
 			}
 
 			if (bAddLightmapDensityCommands)

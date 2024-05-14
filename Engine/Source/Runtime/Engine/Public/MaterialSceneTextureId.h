@@ -77,4 +77,6 @@ enum ESceneTextureId
 	PPI_WorldTangent UMETA(DisplayName = "WorldTangent"),
 	/** Material anisotropy, single channel (GBuffer) */
 	PPI_Anisotropy UMETA(DisplayName = "Anisotropy"),
+	/** CustomCapture */
+	PPI_CustomCapture UMETA(DisplayName = "CustomCapture"),
 };

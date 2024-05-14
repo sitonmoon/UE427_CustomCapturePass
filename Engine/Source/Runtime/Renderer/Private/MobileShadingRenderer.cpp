@@ -1277,6 +1277,8 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 	// End of scene color rendering
 	RHICmdList.EndRenderPass();
 
+	RenderCustomCapturePass(RHICmdList, ViewList);
+
 	return SceneColorResolve ? SceneColorResolve : SceneColor;
 }
 

@@ -1861,6 +1861,9 @@ public:
 	/** Does the material use CustomDepth or CustomStencil lookup */
 	ENGINE_API bool UsesCustomDepthStencil_GameThread() const;
 
+	/** Does the material use CustomCapture lookup */
+	ENGINE_API bool UsesCustomCapture_GameThread() const;
+
 	/** Note: This function is only intended for use in deciding whether or not shader permutations are required before material translation occurs. */
 	ENGINE_API bool MaterialMayModifyMeshPosition() const;
 

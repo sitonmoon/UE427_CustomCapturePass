@@ -1111,6 +1111,7 @@ public:
 	
 	bool bHasDistortionPrimitives;
 	bool bHasCustomDepthPrimitives;
+	bool bHasCustomCapturePrimitives;
 
 	/** Mesh batches with for mesh decal rendering. */
 	TArray<FMeshDecalBatch, SceneRenderingAllocator> MeshDecalBatches;
@@ -2135,6 +2136,9 @@ protected:
 
 	/** Renders the opaque base pass for mobile. */
 	void RenderMobileBasePass(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews);
+	
+	/** Renders the custom capture pass for mobile. */
+	void RenderCustomCapturePass(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews);
 
 	void RenderMobileEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState);
 

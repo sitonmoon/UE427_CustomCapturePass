@@ -57,6 +57,7 @@
 #define PPI_Velocity 28
 #define PPI_WorldTangent 29
 #define PPI_Anisotropy 30
+#define PPI_CustomCapture 31
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1870,6 +1871,11 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 		MaterialFloat Stencil = Texture2DSample(MobileSceneTextures.MobileCustomStencilTexture, MobileSceneTextures.MobileCustomStencilTextureSampler, UV).r*255.0;
 		Stencil = floor(Stencil + 0.5);
 		return MaterialFloat4(Stencil.rrr, 0.f);
+	}
+	else if (SceneTextureId == PPI_CustomCapture)
+	{
+		MaterialFloat4 Color = Texture2DSample(MobileSceneTextures.CustomCaptureTexture, MobileSceneTextures.CustomCaptureTextureSampler, UV)*255.0;
+		return MaterialFloat4(Color.rgb, 0.f);
 	}
 #endif// FEATURE_LEVEL
 
