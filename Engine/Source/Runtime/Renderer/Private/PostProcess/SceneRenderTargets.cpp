@@ -1980,6 +1980,7 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	QuadOverdrawBuffer.SafeRelease();
 	LightAccumulation.SafeRelease();
 	DirectionalOcclusion.SafeRelease();
+	CustomDepth.SafeRelease();
 	MobileCustomDepth.SafeRelease();
 	MobileCustomStencil.SafeRelease();
 	CustomStencilSRV.SafeRelease();
@@ -2378,17 +2379,21 @@ void SetupSceneTextureUniformParameters(
 
 	// Custom Depth / Stencil
 	{
-		const bool bSetupCustomDepth = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::CustomDepth);
+		const bool bSetupCustomDepth = EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::CustomDepth) && SceneContext.bCustomDepthIsValid;
 
 		FRDGTextureRef CustomDepth = DepthDefault;
 		FRHIShaderResourceView* CustomStencilSRV = GSystemTextures.StencilDummySRV;
 
-		if (SceneContext.bCustomDepthIsValid)
+		if (bSetupCustomDepth)
 		{
-			check(SceneContext.CustomDepth && SceneContext.CustomStencilSRV);
-			CustomDepth = GetRDG(SceneContext.CustomDepth);
-			CustomStencilSRV = SceneContext.CustomStencilSRV;
-		}
+			if (SceneContext.CustomDepth)
+			{
+				CustomDepth = GetRDG(SceneContext.CustomDepth);
+			}
+			if (SceneContext.CustomStencilSRV)
+			{
+				CustomStencilSRV = SceneContext.CustomStencilSRV;
+			}		}
 
 		SceneTextureParameters.CustomDepthTexture = CustomDepth;
 		SceneTextureParameters.CustomStencilTexture = CustomStencilSRV;
