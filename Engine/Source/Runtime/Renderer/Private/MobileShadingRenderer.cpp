@@ -1097,6 +1097,9 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 	//if the scenecolor isn't multiview but the app is, need to render as a single-view multiview due to shaders
 	SceneColorRenderPassInfo.MultiViewCount = View.bIsMobileMultiViewEnabled ? 2 : (bIsMultiViewApplication ? 1 : 0);
 
+	// Render CustomCapture Pass before SceneColorRendering
+	RenderCustomCapturePass(RHICmdList, ViewList);
+
 	RHICmdList.BeginRenderPass(SceneColorRenderPassInfo, TEXT("SceneColorRendering"));
 	
 	if (GIsEditor && !View.bIsSceneCapture)
@@ -1110,7 +1113,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		// Depth pre-pass
 		RenderPrePass(RHICmdList);
 	}
-	
+
 	// Opaque and masked
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Opaque));
 	RenderMobileBasePass(RHICmdList, ViewList);
@@ -1276,8 +1279,6 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 	// End of scene color rendering
 	RHICmdList.EndRenderPass();
-
-	RenderCustomCapturePass(RHICmdList, ViewList);
 
 	return SceneColorResolve ? SceneColorResolve : SceneColor;
 }
