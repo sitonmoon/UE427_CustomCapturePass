@@ -267,8 +267,8 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, CustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.CustomDepth))
 	, MobileCustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomDepth))
 	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
-	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
 	, CustomCapture(GRenderTargetPool.MakeSnapshot(SnapshotSource.CustomCapture))
+	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
 	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
 	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
@@ -2100,14 +2100,8 @@ FCustomCaptureTextures FSceneRenderTargets::RequestCustomCapture(FRHICommandList
 
 		if (!CustomCapture)
 		{
-			ETextureCreateFlags CustomCaptureFlags = TexCreate_ShaderResource;
-			if (bMobilePath)
-			{
-				CustomCaptureFlags |= TexCreate_Memoryless;
-			}
-
 			FRHIResourceCreateInfo CreateInfo(TEXT("CustomCaptureTexture"));
-			FPooledRenderTargetDesc CustomCaptureRTDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_G16R16, FClearValueBinding::Black, CustomCaptureFlags, TexCreate_RenderTargetable, false));
+			FPooledRenderTargetDesc CustomCaptureRTDesc(FPooledRenderTargetDesc::Create2DDesc(CustomDepthBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource, TexCreate_RenderTargetable, false));
 			GRenderTargetPool.FindFreeElement(RHICmdList, CustomCaptureRTDesc, CustomCapture, TEXT("CustomCaptureTexture"));
 		}
 		

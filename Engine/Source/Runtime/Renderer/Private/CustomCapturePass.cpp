@@ -10,28 +10,43 @@
 #include "MeshPassProcessor.inl"
 
 bool IsSupportedVertexFactoryType(const FVertexFactoryType* VertexFactoryType) {
-	static FName LocalVfFname = FName(TEXT("FLocalVertexFactory"), FNAME_Find);
-	static FName LSkinnedVfFname = FName(TEXT("FGPUSkinPassthroughVertexFactory"), FNAME_Find);
-	static FName InstancedVfFname = FName(TEXT("FInstancedStaticMeshVertexFactory"), FNAME_Find);
-	static FName NiagaraRibbonVfFname = FName(TEXT("FNiagaraRibbonVertexFactory"), FNAME_Find);
-	static FName NiagaraSpriteVfFname = FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find);
-	static FName NiagaraSpriteExVfFname = FName(TEXT("FNiagaraSpriteVertexFactoryEx"), FNAME_Find);
-	static FName NiagaraMeshVfFname = FName(TEXT("FNiagaraMeshVertexFactory"), FNAME_Find);
-	static FName NiagaraMeshExVfFname = FName(TEXT("FNiagaraMeshVertexFactoryEx"), FNAME_Find);
+	if (!VertexFactoryType)
+	{
+		return false;
+	}
 
-	return VertexFactoryType == FindVertexFactoryType(LocalVfFname)
-		|| VertexFactoryType == FindVertexFactoryType(LSkinnedVfFname)
-		|| VertexFactoryType == FindVertexFactoryType(InstancedVfFname)
-		|| VertexFactoryType == FindVertexFactoryType(NiagaraRibbonVfFname)
-		|| VertexFactoryType == FindVertexFactoryType(NiagaraSpriteVfFname)
-		|| VertexFactoryType == FindVertexFactoryType(NiagaraSpriteExVfFname)
-		|| VertexFactoryType == FindVertexFactoryType(NiagaraMeshVfFname)
-		|| VertexFactoryType == FindVertexFactoryType(NiagaraMeshExVfFname);
+	static const FName LocalVfFname(TEXT("FLocalVertexFactory"));
+	static const FName LSkinnedVfFname(TEXT("FGPUSkinPassthroughVertexFactory"));
+	static const FName LGPUSkinFname(TEXT("TGPUSkinVertexFactoryDefault"));
+	static const FName InstancedVfFname(TEXT("FInstancedStaticMeshVertexFactory"));
+	static const FName NiagaraRibbonVfFname(TEXT("FNiagaraRibbonVertexFactory"));
+	static const FName NiagaraSpriteVfFname(TEXT("FNiagaraSpriteVertexFactory"));
+
+	const FName VFName = FName(VertexFactoryType->GetName());
+
+	if (	VFName == LocalVfFname
+		||	VFName == LSkinnedVfFname
+		||	VFName == LGPUSkinFname
+		||	VFName == InstancedVfFname
+		||	VFName == NiagaraRibbonVfFname
+		||	VFName == NiagaraSpriteVfFname)
+	{
+		return true;
+	}
+
+	return false;
 }
+class FPlannarShadowShaderElementData : public FMeshMaterialShaderElementData
+{
+public:
+	float ShadowBaseHeight;
+};
 
 class FMyPassVS : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(FMyPassVS, MeshMaterial);
+
+	LAYOUT_FIELD(FShaderParameter, ShadowBaseHeightParameter);
 
 	FMyPassVS() {}
 public:
@@ -39,7 +54,9 @@ public:
 	FMyPassVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
 	{
-		//PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		// Bind shader parameter
+		ShadowBaseHeightParameter.Bind(Initializer.ParameterMap, TEXT("ShadowBaseHeight"));
+		//PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 	}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -47,10 +64,13 @@ public:
 		return IsMobilePlatform(Parameters.Platform) && IsSupportedVertexFactoryType(Parameters.VertexFactoryType);;
 	}
 
-	void GetShaderBindings(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material, const FMeshPassProcessorRenderState& DrawRenderState, const FMeshMaterialShaderElementData& ShaderElementData, FMeshDrawSingleShaderBindings& ShaderBindings)
+	void GetShaderBindings(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material, const FMeshPassProcessorRenderState& DrawRenderState, const FPlannarShadowShaderElementData& ShaderElementData, FMeshDrawSingleShaderBindings& ShaderBindings)
 	{
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
+		ShaderBindings.Add(ShadowBaseHeightParameter, ShaderElementData.ShadowBaseHeight);
+
 	}
+
 };
 
 class FMyPassPS : public FMeshMaterialShader
@@ -58,6 +78,7 @@ class FMyPassPS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FMyPassPS, MeshMaterial);
 
 public:
+
 	FMyPassPS() { }
 	FMyPassPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
@@ -80,7 +101,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FMyPassPS, TEXT("/Engine/Private/CustomCaptureP
 
 void FMobileSceneRenderer::RenderCustomCapturePass(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
 {
-	// do we have primitives in this pass?
+	// do we have primitives in this pass?  
 	bool bPrimitives = false;
 
 	if (!Scene->World || (Scene->World->WorldType != EWorldType::EditorPreview && Scene->World->WorldType != EWorldType::Inactive))
@@ -103,8 +124,10 @@ void FMobileSceneRenderer::RenderCustomCapturePass(FRHICommandListImmediate& RHI
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, CustomCapturePass);
 
-		TRefCountPtr<FRHIUniformBuffer> SceneTexturesUniformBuffer = CreateMobileSceneTextureUniformBuffer(RHICmdList, EMobileSceneTextureSetupMode::CustomCapture);
-		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, SceneTexturesUniformBuffer);
+		//TRefCountPtr<FRHIUniformBuffer> SceneTexturesUniformBuffer = CreateMobileSceneTextureUniformBuffer(RHICmdList, EMobileSceneTextureSetupMode::CustomCapture);
+		//SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, SceneTexturesUniformBuffer);
+
+		RHICmdList.Transition(FRHITransitionInfo(CustomCaptureTextures.CustomColor, ERHIAccess::SRVGraphics, ERHIAccess::RTV));
 
 		FRHIRenderPassInfo RPInfo(CustomCaptureTextures.CustomColor, ERenderTargetActions::Clear_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CustomCaptureRendering"));
@@ -155,6 +178,8 @@ void FMobileSceneRenderer::RenderCustomCapturePass(FRHICommandListImmediate& RHI
 		}
 
 		RHICmdList.EndRenderPass();
+
+		RHICmdList.Transition(FRHITransitionInfo(CustomCaptureTextures.CustomColor, ERHIAccess::RTV, ERHIAccess::SRVGraphics));
 	}
 }
 
@@ -176,7 +201,7 @@ FMyPassProcessor::FMyPassProcessor(
 {
 	PassDrawRenderState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
 	PassDrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-	PassDrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
+	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA>::GetRHI());
 	//need no depth
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Never>::GetRHI());
 }
@@ -186,7 +211,7 @@ void FMyPassProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
 	const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-
+	/* if use MeshBatch's mateiril
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 	if (bIsTranslucent)
@@ -198,16 +223,26 @@ void FMyPassProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64
 	{
 		PassDrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA>::GetRHI());
 		PassDrawRenderState.SetPassUniformBuffer(Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer);
-	}
+	} 
+	*/
 
 	if ( (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
 		&& PrimitiveSceneProxy->ShouldRenderCustomCapture()
 		)
 	{
-		//const FMaterialRenderProxy& DefualtProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		//const FMaterial& DefaltMaterial = *DefualtProxy.GetMaterial(Scene->GetFeatureLevel());
+		const FMaterialRenderProxy& DefualtProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		const FMaterial& DefaltMaterial = *DefualtProxy.GetMaterial(Scene->GetFeatureLevel());
+		Process(
+			MeshBatch,
+			BatchElementMask,
+			StaticMeshId,
+			PrimitiveSceneProxy,
+			DefualtProxy,
+			DefaltMaterial
+		);
 
+		/* if use MeshBatch's mateiril
 		Process(
 			MeshBatch,
 			BatchElementMask,
@@ -216,6 +251,7 @@ void FMyPassProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64
 			MaterialRenderProxy,
 			Material
 		);
+		*/
 
 	}
 
@@ -241,13 +277,15 @@ void FMyPassProcessor::Process(
 
 	MyPassShaders.VertexShader = MaterialResource.GetShader<FMyPassVS>(VertexFactory->GetType());
 	MyPassShaders.PixelShader = MaterialResource.GetShader<FMyPassPS>(VertexFactory->GetType());
-
+	
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, MaterialResource, OverrideSettings);
 
-	FMeshMaterialShaderElementData ShaderElementData;
+	FPlannarShadowShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
+	float height = PrimitiveSceneProxy->GetPlannarShadowBaseHeight();
+	ShaderElementData.ShadowBaseHeight = height;
 
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(MyPassShaders.VertexShader, MyPassShaders.PixelShader);
 
